@@ -1,1 +1,2 @@
-data
+data/text_data/*.csv
+data/image_data/
