@@ -1,41 +1,42 @@
+import sys
+import os
 import torch
-import numpy as np
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
+import torch.nn as nn
+import torch.nn.functional as F
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
-class ModelEvaluator:
-    def __init__(self, model, dataloader, device=None):
-        self.model = model.to(device or ("cuda" if torch.cuda.is_available() else "cpu"))
-        self.dataloader = dataloader
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+# Add 'src' directory to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-    def evaluate(self):
-        self.model.eval()
-        y_true, y_pred = [], []
+# Import the model
+from layers.classification.fc_layers import FCClassifier
 
-        with torch.no_grad():
-            for inputs, labels in self.dataloader:
-                inputs, labels = inputs.to(self.device), labels.to(self.device)
-                outputs = self.model(inputs)
-                predictions = torch.argmax(outputs, dim=1)
+# Load the trained model
+MODEL_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "models", "fake_news_model.pth"))
 
-                y_true.extend(labels.cpu().numpy())
-                y_pred.extend(predictions.cpu().numpy())
+# Ensure the model parameters match training
+input_dim, hidden_dim, output_dim = 256, 128, 2
+model = FCClassifier(input_dim, hidden_dim, output_dim)
+model.load_state_dict(torch.load(MODEL_PATH))
+model.eval()
 
-        acc = accuracy_score(y_true, y_pred)
-        precision, recall, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="binary")
-        conf_matrix = confusion_matrix(y_true, y_pred)
+# Dummy test dataset (Replace with real test data)
+X_test = torch.randn(50, input_dim)
+y_test = torch.randint(0, 2, (50,))
 
-        return {"accuracy": acc, "precision": precision, "recall": recall, "f1_score": f1, "confusion_matrix": conf_matrix}
+# Make predictions
+with torch.no_grad():
+    logits = model(X_test)
+    predictions = torch.argmax(logits, dim=1)
 
-# Example Usage
-if __name__ == "__main__":
-    from torch.utils.data import DataLoader
-    from fake_news_model import FakeNewsClassifier  # Assume you have this model
-    from dataset_loader import FakeNewsDataset     # Assume you have a dataset loader
+# Evaluate performance
+accuracy = accuracy_score(y_test, predictions)
+precision = precision_score(y_test, predictions, average='binary')
+recall = recall_score(y_test, predictions, average='binary')
+f1 = f1_score(y_test, predictions, average='binary')
 
-    test_loader = DataLoader(FakeNewsDataset("test.csv"), batch_size=32, shuffle=False)
-    model = FakeNewsClassifier()
-
-    evaluator = ModelEvaluator(model, test_loader)
-    results = evaluator.evaluate()
-    print("Evaluation Metrics:", results)
+print(f"Model Evaluation Metrics:")
+print(f"Accuracy: {accuracy:.4f}")
+print(f"Precision: {precision:.4f}")
+print(f"Recall: {recall:.4f}")
+print(f"F1 Score: {f1:.4f}")
